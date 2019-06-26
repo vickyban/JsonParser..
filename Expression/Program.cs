@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using System.Linq;
 namespace ExpressionTree
 {
     class Program
@@ -11,9 +12,39 @@ namespace ExpressionTree
             //Console.WriteLine( l.Compile().Invoke("poyo"));
             //Example5();
             var content = @"{Name:Poyo,Address:{City:Toronto},Phone:[{one:1},{two:2}]}";
-            JsonParser parse = new JsonParser(content);
-            var result = parse.Parse();
-            Console.WriteLine(result.ToString());
+            //JsonParser parse = new JsonParser(content);
+            //var result = parse.Parse();
+            //Console.WriteLine(result.ToString());
+
+            Person p = new Person { Name = "Poyo", Age = 10, Address = new Address { City = "Mississauga" } };
+            var function = Clone<Person>();
+            var p2 = function.Compile().Invoke(p);
+            Console.WriteLine(p2);
+
+            Foo foo = new Foo { Id = 1, Name = "Poyo", DoB = DateTime.Today };
+            foo.Clone<Foo>();
+
+            //Console.WriteLine( p.Clone<Person>());
+
+            ObjectMapper mapper = new ObjectMapper();
+            
+            mapper.Map<Person, Person>(p, p2);
+            Console.WriteLine(p2);
+        }
+
+        public static Expression<Func<T, T>> Clone<T>() where T : new()
+        {
+            Type type = typeof(T);
+            var param = Expression.Parameter(type, "e");
+            var bindings = type.GetProperties()
+                .Where(prop => prop.CanRead && prop.CanWrite)
+                .Select(prop => Expression.Bind(prop, Expression.Property(param, prop)));
+
+            var ctor = Expression.New(type);
+
+            var body = Expression.MemberInit(ctor, bindings);
+
+            return Expression.Lambda<Func<T, T>>(body, param);
         }
 
         public void Example1()
@@ -232,5 +263,22 @@ namespace ExpressionTree
     {
         public string Name { get; set; }
         public int Age { get; set; }
+
+        public Address Address { get; set; }
+
+        public override string ToString()
+        {
+            return $"name = {Name}, age = {Age}, address = {Address}";
+        }
+    }
+
+    class Address
+    {
+        public string City { get; set; }
+
+        public override string ToString()
+        {
+            return $"city = {City}";
+        }
     }
 }
